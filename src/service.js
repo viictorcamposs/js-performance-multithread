@@ -2,16 +2,25 @@ export default class Service {
   processFile({ query, file, onOccurrenceUpdate, onProgress }) {
     const linesLength = { counter: 0 };
     const progressFn = this.#setupProgress(file.size, onProgress);
+    const startedAt = performance.now();
+    const elapsed = () => (performance.now() - startedAt) / 1000;
+    const timeOutput = () => `${elapsed().toFixed()} seconds`;
+
+    const onUpdate = () => {
+      return (found) => {
+        onOccurrenceUpdate({
+          found,
+          took: timeOutput(),
+          linesLength: linesLength.counter,
+        });
+      };
+    };
 
     file
       .stream()
       .pipeThrough(new TextDecoderStream())
       .pipeThrough(this.#csvToJson({ linesLength, progressFn }))
-      .pipeTo(
-        new WritableStream({
-          write(chunk) {},
-        })
-      );
+      .pipeTo(this.#findOccurrences({ query, onOccurrenceUpdate: onUpdate() }));
   }
 
   #csvToJson({ linesLength, progressFn }) {
@@ -58,5 +67,27 @@ export default class Service {
       const total = (100 / totalBytes) * totalUploaded;
       onProgress(total);
     };
+  }
+
+  #findOccurrences({ query, onOccurrenceUpdate }) {
+    const queryKeys = Object.keys(query);
+    let found = {};
+
+    return new WritableStream({
+      write(jsonLine) {
+        for (const keyIndex in queryKeys) {
+          const key = queryKeys[keyIndex];
+          const queryValue = query[key];
+
+          found[queryValue] = found[queryValue] ?? 0;
+
+          if (queryValue.test(jsonLine[key])) {
+            found[queryValue]++;
+            onOccurrenceUpdate(found);
+          }
+        }
+      },
+      close: () => onOccurrenceUpdate(found),
+    });
   }
 }

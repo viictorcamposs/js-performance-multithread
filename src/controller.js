@@ -7,8 +7,16 @@ export default class Controller {
       console.log("alive");
     },
     progress: ({ total }) => this.#view.updateProgress(total),
-    occurrenceUpdate: () => {
-      console.log("occurrenceUpdate");
+    occurrenceUpdate: ({ found, took, linesLength }) => {
+      const [[key, value]] = Object.entries(found);
+      const searchValue = key.replace("/", "").replace("/i", "");
+
+      this.#view.updateDebugLog(
+        `
+          Found ${value} occurrences of "${searchValue}" - over ${linesLength} lines 
+          Time: ${took}
+        `
+      );
     },
   };
 
