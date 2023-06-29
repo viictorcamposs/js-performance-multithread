@@ -3,9 +3,7 @@ export default class Controller {
   #worker;
   #service;
   #events = {
-    alive: () => {
-      console.log("alive");
-    },
+    alive: () => console.log("alive"),
     progress: ({ total }) => this.#view.updateProgress(total),
     occurrenceUpdate: ({ found, took, linesLength }) => {
       const [[key, value]] = Object.entries(found);
@@ -71,5 +69,16 @@ export default class Controller {
       this.#worker.postMessage({ query, file });
       return;
     }
+
+    this.#service.processFile({
+      file,
+      query,
+      onProgress: (total) => {
+        this.#events.progress({ total });
+      },
+      onOccurrenceUpdate: (...args) => {
+        this.#events.occurrenceUpdate(...args);
+      },
+    });
   }
 }
