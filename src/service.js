@@ -1,16 +1,15 @@
 export default class Service {
   processFile({ query, file, onOccurrenceUpdate, onProgress }) {
     const linesLength = { counter: 0 };
+    const progressFn = this.#setupProgress(file.size, onProgress);
 
     file
       .stream()
       .pipeThrough(new TextDecoderStream())
-      .pipeThrough(this.#csvToJson({ linesLength, onProgress }))
+      .pipeThrough(this.#csvToJson({ linesLength, progressFn }))
       .pipeTo(
         new WritableStream({
-          write(chunk) {
-            console.log("chunk", chunk);
-          },
+          write(chunk) {},
         })
       );
   }
@@ -20,6 +19,8 @@ export default class Service {
 
     return new TransformStream({
       transform(chunk, controller) {
+        progressFn(chunk.length);
+
         const lines = chunk.split("\n");
         linesLength.counter += lines.length;
 
@@ -45,5 +46,17 @@ export default class Service {
         }
       },
     });
+  }
+
+  #setupProgress(totalBytes, onProgress) {
+    let totalUploaded = 0;
+    onProgress(totalUploaded);
+
+    return (chunkLength) => {
+      totalUploaded += chunkLength;
+
+      const total = (100 / totalBytes) * totalUploaded;
+      onProgress(total);
+    };
   }
 }

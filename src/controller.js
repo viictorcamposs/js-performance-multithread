@@ -6,9 +6,7 @@ export default class Controller {
     alive: () => {
       console.log("alive");
     },
-    progress: () => {
-      console.log("progress");
-    },
+    progress: ({ total }) => this.#view.updateProgress(total),
     occurrenceUpdate: () => {
       console.log("occurrenceUpdate");
     },
@@ -62,10 +60,8 @@ export default class Controller {
     query["call description"] = new RegExp(description, "i");
 
     if (this.#view.isWorkerThreadEnabled()) {
-      this.#worker.postMessage({ description, file });
+      this.#worker.postMessage({ query, file });
       return;
     }
-
-    console.log("executing on main thread");
   }
 }
