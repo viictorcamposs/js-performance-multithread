@@ -2,11 +2,22 @@ export default class Controller {
   #view;
   #worker;
   #service;
+  #events = {
+    alive: () => {
+      console.log("alive");
+    },
+    progress: () => {
+      console.log("progress");
+    },
+    occurrenceUpdate: () => {
+      console.log("occurrenceUpdate");
+    },
+  };
 
   constructor({ view, worker, service }) {
     this.#view = view;
     this.#service = service;
-    this.#worker = worker;
+    this.#worker = this.#configureWorker(worker);
   }
 
   static init(deps) {
@@ -19,6 +30,13 @@ export default class Controller {
 
   init() {
     this.#view.configureOnFileChange(this.#configureOnFileChange.bind(this));
+    this.#view.configureOnFormSubmit(this.#configureOnFormSubmit.bind(this));
+  }
+
+  #configureWorker(worker) {
+    worker.onmessage = ({ data }) => this.#events[data.eventType](data);
+
+    return worker;
   }
 
   #formatFileSize(size) {
@@ -37,5 +55,17 @@ export default class Controller {
     const fileSize = this.#formatFileSize(file.size);
 
     this.#view.setFileSize(fileSize);
+  }
+
+  #configureOnFormSubmit({ description, file }) {
+    const query = {};
+    query["call description"] = new RegExp(description, "i");
+
+    if (this.#view.isWorkerThreadEnabled()) {
+      this.#worker.postMessage({ description, file });
+      return;
+    }
+
+    console.log("executing on main thread");
   }
 }
